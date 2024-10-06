@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collatz Conjecture Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --bg-color: #0a0a1a;
+            --text-color: #e0e0ff;
+            --accent-color: #b300ff;
+            --secondary-color: #8000ff;
+            --tertiary-color: #d700ff;
+        }
+
+        body, html {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        #app {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 47, 0.95);
+            overflow: hidden;
+        }
+
+        #content {
+            display: flex;
+            height: 100%;
+        }
+
+        nav {
+            width: 200px;
+            background-color: rgba(26, 26, 47, 0.8);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px var(--accent-color);
+        }
+
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            width: 100%;
+        }
+
+        nav li {
+            margin-bottom: 20px;
+        }
+
+        nav a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 18px;
+            transition: color 0.3s, text-shadow 0.3s;
+            display: block;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        nav a::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translateY(100%);
+            transition: transform 0.3s;
+        }
+
+        nav a:hover::before {
+            transform: translateY(0);
+        }
+
+        nav a.active {
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-color);
+        }
+
+        main {
+            flex-grow: 1;
+            padding: 40px;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        section {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+
+        section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        h1, h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent-color);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 48px;
+            text-align: center;
+            text-shadow: 0 0 20px var(--accent-color);
+        }
+
+        h2 {
+            font-size: 36px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input, button {
+            background-color: rgba(42, 42, 79, 0.8);
+            border: 2px solid var(--accent-color);
+            color: var(--text-color);
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+
+        button {
+            cursor: pointer;
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background-color: var(--bg-color);
+            color: var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        #3d-model {
+            width: 100%;
+            height: calc(100vh - 200px);
+            background-color: rgba(26, 26, 47, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(179, 0, 255, 0.3);
+        }
+
+        #plot-container {
+            margin-top: 30px;
+            background-color: rgba(26, 26, 47, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(179, 0, 255, 0.3);
+        }
+
+        .theorem-content, .history-content {
+            background-color: rgba(26, 26, 47, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 0 30px rgba(179, 0, 255, 0.3);
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+
+        ul li::before {
+            content: '•';
+            color: var(--secondary-color);
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 5px var(--accent-color);
+            }
+            50% {
+                box-shadow: 0 0 20px var(--accent-color), 0 0 30px var(--secondary-color);
+            }
+            100% {
+                box-shadow: 0 0 5px var(--accent-color);
+            }
+        }
+
+        .glow {
+            animation: glow 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="content">
+            <nav>
+                <div class="logo">CX</div>
+                <ul>
+                    <li><a href="#home" class="active" data-text="Home">Home</a></li>
+                    <li><a href="#start" data-text="Start">Start</a></li>
+                    <li><a href="#theorem" data-text="Theorem">Theorem</a></li>
+                    <li><a href="#history" data-text="History">History</a></li>
+                </ul>
+            </nav>
+            <main>
+                <section id="home" class="active">
+                    <h1>Collatz Conjecture Explorer</h1>
+                    <div id="3d-model"></div>
+                </section>
+                <section id="start">
+                    <h2>Start Exploration</h2>
+                    <div class="input-container">
+                        <input type="number" id="start-value" placeholder="Enter a positive integer">
+                        <button id="generate-plot">Generate Plot</button>
+                    </div>
+                    <div id="plot-container"></div>
+                </section>
+                <section id="theorem">
+                    <h2>The Collatz Conjecture</h2>
+                    <div class="theorem-content">
+                        <p>The Collatz conjecture states that for any positive integer n:</p>
+                        <ul>
+                            <li>If n is even, divide it by 2</li>
+                            <li>If n is odd, multiply it by 3 and add 1</li>
+                        </ul>
+                        <p>Repeating this process will always eventually reach 1, regardless of the starting number.</p>
+                    </div>
+                </section>
+                <section id="history">
+                    <h2>History of the Collatz Conjecture</h2>
+                    <div class="history-content">
+                        <p>The Collatz conjecture, proposed by German mathematician Lothar Collatz in 1937, is a mathematical sequence defined for positive integers. The process involves taking any positive integer n: if n is even, divide it by 2; if odd, multiply by 3 and add 1. The conjecture suggests that no matter the starting integer, the sequence will always eventually reach the number 1.</p>
+                        <p>Despite its simple formulation, the conjecture remains unproven, captivating mathematicians like Terence Tao, who has explored its intricacies. It has implications in number theory and has been tested for vast numbers, yet a general proof or counterexample remains elusive.</p>
+                        <p>The conjecture has been a subject of intense study and has resisted all attempts at a proof for over 80 years. Its simplicity and the difficulty in proving it have made it one of the most famous unsolved problems in mathematics.</p>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('nav a');
+            const sections = document.querySelectorAll('main section');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('href').slice(1);
+                    
+                    gsap.to(sections, {
+                        duration: 0.5,
+                        opacity: 0,
+                        y: 20,
+                        stagger: 0.1,
+                        onComplete: () => {
+                            sections.forEach(section => {
+                                section.classList.remove('active');
+                            });
+                            
+                            document.getElementById(targetId).classList.add('active');
+                            
+                            gsap.to(`#${targetId}`, {
+                                duration: 0.5,
+                                opacity: 1,
+                                y: 0,
+                                delay: 0.1
+                            });
+                        }
+                    });
+                    
+                    navLinks.forEach(navLink => {
+                        navLink.classList.remove('active');
+                    });
+                    
+                    link.classList.add('active');
+                });
+            });
+
+            // 3D Model
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('3d-model').appendChild(renderer.domElement);
+
+            const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0xb300ff,
+                emissive: 0x8000ff,
+                specular: 0xffffff,
+                shininess: 100,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const torusKnot = new THREE.Mesh(geometry, material);
+            scene.add(torusKnot);
+
+            const light = new THREE.PointLight(0xffffff, 1, 100);
+            light.position.set(0, 0, 10);
+            scene.add(light);
+
+            camera.position.z = 30;
+
+            function createParticles() {
+                const particlesGeometry = new THREE.BufferGeometry();
+                const particlesCnt = 5000;
+                const posArray = new Float32Array(particlesCnt * 3);
+
+                for (let i = 0; i < particlesCnt * 3; i++) {
+                    posArray[i] = (Math.random() - 0.5) * 100;
+                }
+
+                particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+                const particlesMaterial = new THREE.PointsMaterial({
+                    size: 0.005,
+                    color: 0xd700ff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+                scene.add(particlesMesh);
+
+                return particlesMesh;
+            }
+
+            const particles = createParticles();
+
+            // Make the 3D model interactive
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            function onMouseMove(event) {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(torusKnot);
+
+                if (intersects.length > 0) {
+                    torusKnot.material.color.setHex(0xff00ff);
+                } else {
+                    torusKnot.material.color.setHex(0xb300ff);
+                }
+            }
+
+            window.addEventListener('mousemove', onMouseMove, false);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                torusKnot.rotation.x += 0.01;
+                torusKnot.rotation.y += 0.01;
+
+                particles.rotation.x += 0.0005;
+                particles.rotation.y += 0.0005;
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // Plot generation
+            const generatePlotButton = document.getElementById('generate-plot');
+            const startValueInput = document.getElementById('start-value');
+            const plotContainer = document.getElementById('plot-container');
+
+            generatePlotButton.addEventListener('click', () => {
+                const startValue = parseInt(startValueInput.value);
+                if (isNaN(startValue) || startValue <= 0) {
+                    alert('Please enter a positive integer.');
+                    return;
+                }
+
+                generatePlotButton.disabled = true;
+                generatePlotButton.textContent = 'Generating...';
+
+                const sequence = collatzSequence(startValue);
+                const trace = {
+                    x: Array.from(Array(sequence.length).keys()),
+                    y: sequence,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    marker: {color: '#b300ff'},
+                    line: {color: '#8000ff'}
+                };
+
+                const layout = {
+                    title: `Collatz Sequence for ${startValue}`,
+                    xaxis: {title: 'Step'},
+                    yaxis: {title: 'Value'},
+                    paper_bgcolor: 'rgba(26, 26, 47, 0.5)',
+                    plot_bgcolor: 'rgba(26, 26, 47, 0.5)',
+                    font: {color: '#e0e0ff'},
+                    autosize: true
+                };
+
+                Plotly.newPlot(plotContainer, [trace], layout);
+
+                generatePlotButton.disabled = false;
+                generatePlotButton.textContent = 'Generate Plot';
+            });
+
+            function collatzSequence(n) {
+                const sequence = [n];
+                while (n !== 1) {
+                    if (n % 2 === 0) {
+                        n = n / 2;
+                    } else {
+                        n = 3 * n + 1;
+                    }
+                    sequence.push(n);
+                }
+                return sequence;
+            }
+
+            // Responsive design
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        });
+    </script>
+</body>
+</html>
